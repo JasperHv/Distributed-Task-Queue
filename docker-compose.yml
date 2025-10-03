@@ -38,9 +38,6 @@ services:
     build: .
     container_name: coordinator
     command: npm run start:coordinator
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -48,7 +45,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
-      NODE_ID: coordinator-1
+      NODE_ID: coordinator
       RABBITMQ_URL: amqp://user:pass@rabbitmq:5672
       REDIS_URL: redis://redis:6379
     networks:
@@ -59,9 +56,6 @@ services:
     build: .
     container_name: worker-1
     command: npm run start:worker
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -80,9 +74,6 @@ services:
     build: .
     container_name: worker-2
     command: npm run start:worker
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -101,9 +92,6 @@ services:
     build: .
     container_name: worker-3
     command: npm run start:worker
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -122,8 +110,6 @@ services:
     build: .
     container_name: client
     command: npm run start:client
-    volumes:
-      - .:/usr/src/app
     depends_on:
       - coordinator
     environment:
