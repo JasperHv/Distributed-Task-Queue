@@ -1,0 +1,20 @@
+{
+  "name": "distributed-task-queue",
+  "version": "1.0.0",
+  "description": "Distributed task queue with Coordinator, Workers, RabbitMQ, and Redis",
+  "main": "index.js",
+  "scripts": {
+    "start:coordinator": "node src/coordinator/coordinator.js",
+    "start:worker": "node src/worker/worker.js",
+    "start:client": "node src/client/client.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "redis": "^4.6.7"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "author": "Jasper van Heusden",
+  "license": "MIT"
+}

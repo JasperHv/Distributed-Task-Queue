@@ -1,0 +1,80 @@
+version: "3.9"
+
+services:
+  # Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # RabbitMQ (AMQP)
+      - "15672:15672" # RabbitMQ Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+    networks:
+      - tasknet
+
+  # State Storage
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - tasknet
+
+  # Coordinator
+  coordinator:
+    build: 
+      context: .
+      dockerfile: src/coordinator/Dockerfile
+    container_name: coordinator
+    depends_on:
+      - rabbitmq
+      - redis
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASS=pass
+      - REDIS_HOST=redis
+    networks:
+      - tasknet
+
+  # Workers (3 replicas)
+  worker:
+    build: 
+      context: .
+      dockerfile: src/worker/Dockerfile
+    depends_on:
+      - rabbitmq
+      - redis
+      - coordinator
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASS=pass
+      - REDIS_HOST=redis
+      - COORDINATOR_HOST=coordinator
+    deploy:
+      replicas: 3
+    networks:
+      - tasknet
+
+  # Client API
+  client:
+    build: 
+      context: .
+      dockerfile: src/client/Dockerfile
+    container_name: client
+    depends_on:
+      - coordinator
+    environment:
+      - COORDINATOR_HOST=coordinator
+    ports:
+      - "8080:8080"
+    networks:
+      - tasknet
+
+networks:
+  tasknet:
+    driver: bridge
