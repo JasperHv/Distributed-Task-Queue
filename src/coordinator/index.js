@@ -1,9 +1,9 @@
-import 'dotenv';
 import amqp from "amqplib";
+import config from "../shared/config.js";
 
 async function sendMessage() {
     try {
-        const connection = await amqp.connect(process.env.RABBITMQ_URL);
+        const connection = await amqp.connect(config.rabbitmqUrl);
         const channel = await connection.createChannel();
         const queue = "task_queue";
         const testMsg = "Hello World!";
