@@ -43,6 +43,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       NODE_ENV: development
       NODE_ID: coordinator
@@ -61,6 +64,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       NODE_ENV: development
       WORKER_ID: worker-1
@@ -79,6 +85,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       NODE_ENV: development
       WORKER_ID: worker-2
@@ -97,6 +106,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       NODE_ENV: development
       WORKER_ID: worker-3
@@ -112,6 +124,9 @@ services:
     command: npm run start:client
     depends_on:
       - coordinator
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       NODE_ENV: development
       PORT: 3000
