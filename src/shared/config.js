@@ -1,10 +1,18 @@
 // Centralized configuration
 export default {
-    // RabbitMQ
-    rabbitmqUrl: process.env.RABBITMQ_URL || 'amqp://user:pass@localhost:5672',
+  // RabbitMQ connection
+  rabbitmqUrl: process.env.RABBITMQ_URL,
   
-    // Redis
-    redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  // Redis connection
+  redisUrl: process.env.REDIS_URL,
   
-    // Other configurations can be added here
+  // Node identification (NODE_ID for coordinator, WORKER_ID for workers)
+  nodeId: process.env.NODE_ID || process.env.WORKER_ID || `node-${Date.now()}`,
+  
+  // Queue names
+  taskQueue: 'task_queue',
+  resultQueue: 'results',
+  
+  // Logging
+  logLevel: process.env.LOG_LEVEL || 'info'
 };
