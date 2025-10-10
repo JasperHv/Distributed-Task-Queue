@@ -9,10 +9,14 @@ async function sendMessage() {
         const channel = await connection.createChannel();
         await channel.assertQueue(config.taskQueue, { durable: true });
         console.log(`Connected to RabbitMQ as ${config.nodeId}`);
-        channel.sendToQueue(queue, Buffer.from(testMsg), { persistent: true });
-        console.log(" [coordinator] Sent '%s'", testMsg);
-        setInterval(() => {}, 1000);
 
+        // Send 10 messages
+        for (let i = 1; i <= 10; i++) {
+            const testMsg = `Message ${i}`;
+            channel.sendToQueue(config.taskQueue, Buffer.from(testMsg), { persistent: true });
+            console.log(`[${config.nodeId}] Sent: '${testMsg}'`);
+        }
+        
     } catch (error) {
         console.error("Error in sendMessage:", error);
     }
