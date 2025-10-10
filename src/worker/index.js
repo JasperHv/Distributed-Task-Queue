@@ -14,7 +14,12 @@ async function receiveMessage() {
         console.log(`Waiting for messages in ${config.taskQueue}...`);
 
         channel.consume(config.taskQueue, (msg) => {
-                console.log(`Received: ${msg.content.toString()}`);
+                if (msg === null) {
+                    console.warn("Consumer cancelled by server");
+                    return;
+}   catch (error) {
+        console.error("Error in receiveMessage:", error);
+    }
                 channel.ack(msg);
         }, { noAck: false });
 }   catch (error) {
