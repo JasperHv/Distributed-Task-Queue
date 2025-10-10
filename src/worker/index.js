@@ -17,14 +17,17 @@ async function receiveMessage() {
                 if (msg === null) {
                     console.warn("Consumer cancelled by server");
                     return;
-}   catch (error) {
-        console.error("Error in receiveMessage:", error);
-    }
+                }
+                
+                // Process the message
+                console.log(`[${config.nodeId}] Received: ${msg.content.toString()}`);
+                
+                // Acknowledge after processing
                 channel.ack(msg);
         }, { noAck: false });
-}   catch (error) {
-        console.error("Error in receiveMessage:", error);
-    }
+    }   catch (error) {
+            console.error("Error in receiveMessage:", error);
+        }
 }
 
 receiveMessage();
