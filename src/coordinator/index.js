@@ -7,14 +7,15 @@ async function sendMessage() {
         connection = await amqp.connect(config.rabbitmqUrl, {
             clientProperties: { connection_name: config.nodeId }
         });
-        channel = await connection.createChannel();
+        const channel = await connection.createConfirmChannel();
         await channel.assertQueue(config.taskQueue, { durable: true });
         console.log(`Connected to RabbitMQ as ${config.nodeId}`);
 
         // Send 10 messages
         for (let i = 1; i <= 10; i++) {
             const testMsg = `Message ${i}`;
-            channel.sendToQueue(config.taskQueue, Buffer.from(testMsg), { persistent: true });
+            await channel.sendToQueue(config.taskQueue, Buffer.from(testMsg), { persistent: true });  
++           await channel.waitForConfirms();  
             console.log(`[${config.nodeId}] Sent: '${testMsg}'`);
         }
         
