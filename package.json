@@ -5,9 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start:coordinator": "nodemon src/coordinator/index.js",
-    "start:worker": "nodemon src/worker/index.js",
-    "start:client": "nodemon src/client/index.js",
+    "start:coordinator": "npx nodemon src/coordinator/index.js",
+    "start:worker": "npx nodemon src/worker/index.js",
+    "start:client": "npx nodemon src/client/index.js",
     "test": "node --test tests/**/*.test.js",
     "logs": "docker-compose logs -f"
   },

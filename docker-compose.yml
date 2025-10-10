@@ -9,8 +9,8 @@ services:
       - "5672:5672"   # AMQP protocol
       - "15672:15672" # Management UI (http://localhost:15672)
     environment:
-      RABBITMQ_DEFAULT_USER: user
-      RABBITMQ_DEFAULT_PASS: pass
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     healthcheck:
       test: rabbitmq-diagnostics -q ping
       interval: 10s
@@ -34,9 +34,9 @@ services:
       - tasknet
 
   # Coordinator (Leader election capable)
-  coordinator:
+  coordinator-1:
     build: .
-    container_name: coordinator
+    container_name: coordinator-1
     command: npm run start:coordinator
     volumes:
       - .:/usr/src/app
@@ -49,8 +49,29 @@ services:
     environment:
       NODE_ENV: development
       NODE_ID: coordinator-1
-      RABBITMQ_URL: amqp://user:pass@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_URL: ${REDIS_URL}
+    networks:
+      - tasknet
+
+  # Backup coordinator
+  coordinator-2:
+    build: .
+    container_name: coordinator-2
+    command: npm run start:coordinator
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      NODE_ID: coordinator-2
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_URL: ${REDIS_URL}
     networks:
       - tasknet
 
@@ -70,8 +91,8 @@ services:
     environment:
       NODE_ENV: development
       WORKER_ID: worker-1
-      RABBITMQ_URL: amqp://user:pass@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_URL: ${REDIS_URL}
     networks:
       - tasknet
 
@@ -91,8 +112,8 @@ services:
     environment:
       NODE_ENV: development
       WORKER_ID: worker-2
-      RABBITMQ_URL: amqp://user:pass@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_URL: ${REDIS_URL}
     networks:
       - tasknet
 
@@ -112,8 +133,8 @@ services:
     environment:
       NODE_ENV: development
       WORKER_ID: worker-3
-      RABBITMQ_URL: amqp://user:pass@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_URL: ${REDIS_URL}
     networks:
       - tasknet
 
@@ -124,15 +145,16 @@ services:
     command: npm run start:client
     volumes:
       - .:/usr/src/app
+      - /usr/src/app/node_modules
     depends_on:
-      - coordinator
+      - coordinator-1
     environment:
       NODE_ENV: development
       PORT: 3000
-      RABBITMQ_URL: amqp://user:pass@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_URL: ${REDIS_URL}
     ports:
-      - "3000:3000"
+      - "3000:3000"  # Changed from 8080 for clarity
     networks:
       - tasknet
 
