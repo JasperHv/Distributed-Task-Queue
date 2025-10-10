@@ -18,12 +18,16 @@ async function receiveMessage() {
                     console.warn("Consumer cancelled by server");
                     return;
                 }
-                
-                // Process the message
-                console.log(`[${config.nodeId}] Received: ${msg.content.toString()}`);
-                
-                // Acknowledge after processing
-                channel.ack(msg);
+                try {
+                    // Process the message
+                    console.log(`[${config.nodeId}] Received: ${msg.content.toString()}`);
+                    
+                    // Acknowledge after processing
+                    channel.ack(msg);
+                } catch (processError) {
+                    console.error("Error processing message:", processError);
+                    channel.nack(msg, false, true); // Reject and requeue
+                }
         }, { noAck: false });
     }   catch (error) {
             console.error("Error in receiveMessage:", error);
