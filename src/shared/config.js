@@ -1,10 +1,23 @@
+// Helper function to validate required environment variables
+function validateRequiredEnv(varName) {
+  const value = process.env[varName];
+  
+  if (!value) {
+    console.error(`ERROR: Required environment variable ${varName} is not set`);
+    console.error(`Please set ${varName} in your environment or .env file`);
+    process.exit(1);
+  }
+  
+  return value;
+}
+
 // Centralized configuration
 export default {
   // RabbitMQ connection
-  rabbitmqUrl: process.env.RABBITMQ_URL,
+  rabbitmqUrl: validateRequiredEnv('RABBITMQ_URL'),
   
   // Redis connection
-  redisUrl: process.env.REDIS_URL,
+  redisUrl: validateRequiredEnv('REDIS_URL'),
   
   // Node identification (NODE_ID for coordinator, WORKER_ID for workers)
   nodeId: process.env.NODE_ID || process.env.WORKER_ID || `node-${Date.now()}`,
