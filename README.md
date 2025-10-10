@@ -15,7 +15,7 @@ This project implements a distributed task queue with:
 Coordinator → RabbitMQ Queue → [Worker-1, Worker-2, Worker-3]
 ```
 
-Currently I have a basic message passing system implemenrtation with:
+Currently I have a basic message passing system implementation with:
 
 #### Coordinator
 - Connects to RabbitMQ using AMQP protocol
