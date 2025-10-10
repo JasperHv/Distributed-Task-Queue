@@ -32,7 +32,7 @@ Currently I have a basic message passing system implementation with:
 The current system demonstrates **round-robin distribution** but **no ordering guarantees**:
 
 **Coordinator sends (in order):**
-```
+```txt
 [coordinator] Sent: 'Message 1'
 [coordinator] Sent: 'Message 2'
 [coordinator] Sent: 'Message 3'
@@ -46,7 +46,7 @@ The current system demonstrates **round-robin distribution** but **no ordering g
 ```
 
 **Workers receive (distributed but processed out of order):**
-```
+```txt
 worker-1: Received: Message 1
 worker-2: Received: Message 2
 worker-3: Received: Message 3
