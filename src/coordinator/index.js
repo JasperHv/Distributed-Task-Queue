@@ -2,11 +2,12 @@ import amqp from "amqplib";
 import config from "../shared/config.js";
 
 async function sendMessage() {
+    let connection, channel;
     try {
-        const connection = await amqp.connect(config.rabbitmqUrl, {
+        connection = await amqp.connect(config.rabbitmqUrl, {
             clientProperties: { connection_name: config.nodeId }
         });
-        const channel = await connection.createChannel();
+        channel = await connection.createChannel();
         await channel.assertQueue(config.taskQueue, { durable: true });
         console.log(`Connected to RabbitMQ as ${config.nodeId}`);
 
@@ -17,8 +18,24 @@ async function sendMessage() {
             console.log(`[${config.nodeId}] Sent: '${testMsg}'`);
         }
         
+        console.log("Connection closed successfully");
     } catch (error) {
         console.error("Error in sendMessage:", error);
+    } finally {
+        if (channel) {
+            try {
+                await channel.close();
+            } catch (closeError) {
+                console.error("Error closing channel:", closeError);
+            }
+        }
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (closeError) {
+                console.error("Error closing connection:", closeError);
+            }
+        }
     }
 }
 
