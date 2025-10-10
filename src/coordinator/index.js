@@ -4,14 +4,11 @@ import config from "../shared/config.js";
 async function sendMessage() {
     try {
         const connection = await amqp.connect(config.rabbitmqUrl, {
-            clientProperties: {
-                connection_name: config.nodeId
-            }
+            clientProperties: { connection_name: config.nodeId }
         });
         const channel = await connection.createChannel();
-        const queue = "task_queue";
-        const testMsg = "Hello World!";
-        await channel.assertQueue(queue, { durable: true });
+        await channel.assertQueue(config.taskQueue, { durable: true });
+        console.log(`Connected to RabbitMQ as ${config.nodeId}`);
         channel.sendToQueue(queue, Buffer.from(testMsg), { persistent: true });
         console.log(" [coordinator] Sent '%s'", testMsg);
         setInterval(() => {}, 1000);
