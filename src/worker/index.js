@@ -18,7 +18,7 @@ async function receiveMessage() {
                 channel.ack(msg);
         }, { noAck: false });
 }   catch (error) {
-        console.error("Error in sendMessage:", error);
+        console.error("Error in receiveMessage:", error);
     }
 }
 
