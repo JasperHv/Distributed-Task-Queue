@@ -52,6 +52,21 @@ const server = app.listen(PORT, () => {
     console.log(`[${config.nodeId}] Environment: ${config.nodeEnv}`);
 });
 
+// SERVER-LEVEL ERROR HANDLING
+server.on('error', (error) => {
+  console.error('[Server Error]', error.message);
+  
+  if (error.code === 'EADDRINUSE') {
+    console.error(`ERROR: Port ${PORT} is already in use`);
+    console.error('Try a different port or kill the process using this port');
+  } else if (error.code === 'EACCES') {
+    console.error(`ERROR: Port ${PORT} requires elevated privileges`);
+    console.error('Try using a port > 1024 or run with sudo (not recommended)');
+  }
+  
+  process.exit(1);
+});
+
 const shutdown = async () => {
   console.log('Shutdown signal received, closing server gracefully...');
   
