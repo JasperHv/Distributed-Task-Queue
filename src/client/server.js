@@ -47,9 +47,32 @@ app.get('/tasks/:taskId', (req, res) => {
   res.status(501).json({ message: 'Task status query not yet implemented', taskId });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`[${config.nodeId}] Client API listening on port ${PORT}`);
     console.log(`[${config.nodeId}] Environment: ${config.nodeEnv}`);
 });
+
+const shutdown = async () => {
+  console.log('Shutdown signal received, closing server gracefully...');
+  
+  // Stop accepting new requests
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+  
+  // Close external connections
+  // TODO: Close RabbitMQ connection
+  // TODO: Close Redis connection
+  
+  // Force exit
+  setTimeout(() => {
+    console.error('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', shutdown);  // Docker stop command / production
+process.on('SIGINT', shutdown);   // Ctrl+C / development
 
 export default app;
