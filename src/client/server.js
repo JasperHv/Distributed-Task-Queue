@@ -4,6 +4,7 @@ dotenv.config();
 import config from '../shared/config.js';
 
 const app = express();
+app.use(express.json());
 
 if (!config.port) {
   console.error('ERROR: PORT is required for the client API');
@@ -38,7 +39,8 @@ app.get('/tasks/:taskId', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is listening at http://localhost:${PORT}`);
+    console.log(`[${config.nodeId}] Client API listening on port ${PORT}`);
+    console.log(`[${config.nodeId}] Environment: ${config.nodeEnv}`);
 });
 
 export default app;
