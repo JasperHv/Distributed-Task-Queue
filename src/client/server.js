@@ -11,6 +11,14 @@ app.get('/', (req, res) => {
     res.send('Task Queue API Server is running');
 });
 
+// Basic health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Placeholder for task submission endpoint
 app.post('/tasks', (req, res) => {
   // TODO: Connect to RabbitMQ
