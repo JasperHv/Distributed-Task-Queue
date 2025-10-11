@@ -1,22 +1,41 @@
-import express from 'express';
 import dotenv from 'dotenv';
+dotenv.config();
+import express from 'express';
 import config from '../shared/config.js';
 
-dotenv.config();
-
 const app = express();
-const PORT = config.port;
+app.use(express.json());
+
+if (!config.port) {
+  console.error('ERROR: PORT is required for the client API');
+  console.error('Please set PORT in your .env file');
+  process.exit(1);
+}
+const PORT = parseInt(config.port, 10);
+if (isNaN(PORT) || PORT <= 0) {
+  console.error(`ERROR: PORT must be a valid positive number, got: ${config.port}`);
+  process.exit(1);
+}
 
 app.get('/', (req, res) => {
     res.send('Task Queue API Server is running');
 });
 
-// Basic health check endpoint
+// Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  // Check if we can reach dependencies
+  const health = {
     status: 'healthy',
-    timestamp: new Date().toISOString()
-  });
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.nodeEnv,
+    dependencies: {
+      rabbitmq: 'unknown', // TODO: ping RabbitMQ
+      redis: 'unknown'     // TODO: ping Redis
+    }
+  };
+  
+  res.status(200).json(health);
 });
 
 // Placeholder for task submission endpoint
@@ -32,8 +51,52 @@ app.get('/tasks/:taskId', (req, res) => {
   res.status(501).json({ message: 'Task status query not yet implemented', taskId });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is listening at http://localhost:${PORT}`);
+const server = app.listen(PORT);
+
+// SERVER-LEVEL ERROR HANDLING
+server.on('error', (error) => {
+  console.error('[Server Error]', error.message);
+  
+  if (error.code === 'EADDRINUSE') {
+    console.error(`ERROR: Port ${PORT} is already in use`);
+    console.error('Try a different port or kill the process using this port');
+  } else if (error.code === 'EACCES') {
+    console.error(`ERROR: Port ${PORT} requires elevated privileges`);
+    console.error('Try using a port > 1024 or run with sudo (not recommended)');
+  }
+  
+  process.exit(1);
 });
+
+// SUCCESSFUL STARTUP LOGGING
+server.on('listening', () => {
+  const address = server.address();
+  const actualPort = address.port;
+  console.log(`[${config.nodeId}] Client API listening on port ${actualPort}`);
+  console.log(`[${config.nodeId}] Environment: ${config.nodeEnv}`);
+});
+
+const shutdown = async () => {
+  console.log('Shutdown signal received, closing server gracefully...');
+  
+  // Stop accepting new requests
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+  
+  // Close external connections
+  // TODO: Close RabbitMQ connection
+  // TODO: Close Redis connection
+  
+  // Force exit
+  setTimeout(() => {
+    console.error('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', shutdown);  // Docker stop command / production
+process.on('SIGINT', shutdown);   // Ctrl+C / development
 
 export default app;
