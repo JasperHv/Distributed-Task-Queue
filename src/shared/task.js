@@ -3,9 +3,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { TaskStatus } from './helpers/task-status.js';
 
 /**
+ * Validates task input parameters before creation
+ */
+export function validateTaskInput({ type, payload, dependencies = [] }) {
+    if (!type || typeof type !== 'string') throw new Error('Task must have a valid type (string)');
+    if (payload === undefined || payload === null) throw new Error('Task must have payload');
+    if (!Array.isArray(dependencies)) throw new Error('Task dependencies must be an array');
+    
+    return true;
+}
+
+/**
  * Creates a new task object
  */
 export function createTask({ type, payload, dependencies = [] }) {
+    // Validate input before creating task
+    validateTaskInput({ type, payload, dependencies });
+    
     return {
         task_id: uuidv4(),
         type,
@@ -19,17 +33,4 @@ export function createTask({ type, payload, dependencies = [] }) {
         result: null,
         error: null
     };
-}
-
-/**
- * Validates task structure
- */
-export function validateTask(task) {
-    if (!task.task_id) throw new Error('Task must have task_id');
-    if (!task.type) throw new Error('Task must have type');
-    if (!task.payload) throw new Error('Task must have payload');
-    if (!Array.isArray(task.dependencies)) throw new Error('Task dependencies must be an array');
-    if (!Object.values(TaskStatus).includes(task.status)) throw new Error('Invalid task status');
-
-    return true;
 }
