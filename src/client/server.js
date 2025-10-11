@@ -12,6 +12,10 @@ if (!config.port) {
   process.exit(1);
 }
 const PORT = parseInt(config.port, 10);
+if (isNaN(PORT) || PORT <= 0) {
+  console.error(`ERROR: PORT must be a valid positive number, got: ${config.port}`);
+  process.exit(1);
+}
 
 app.get('/', (req, res) => {
     res.send('Task Queue API Server is running');
