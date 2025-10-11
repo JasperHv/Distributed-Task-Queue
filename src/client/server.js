@@ -17,12 +17,21 @@ app.get('/', (req, res) => {
     res.send('Task Queue API Server is running');
 });
 
-// Basic health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  // Check if we can reach dependencies
+  const health = {
     status: 'healthy',
-    timestamp: new Date().toISOString()
-  });
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.nodeEnv,
+    dependencies: {
+      rabbitmq: 'unknown', // TODO: ping RabbitMQ
+      redis: 'unknown'     // TODO: ping Redis
+    }
+  };
+  
+  res.status(200).json(health);
 });
 
 // Placeholder for task submission endpoint
