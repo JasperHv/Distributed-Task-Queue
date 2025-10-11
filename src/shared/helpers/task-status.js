@@ -9,9 +9,9 @@
  * - failed: Error occurred
  */
 export const TaskStatus = {
-  SUBMITTED: 'submitted',
-  PENDING: 'pending',
-  RUNNING: 'running',
-  COMPLETED: 'completed',
-  FAILED: 'failed'
+    SUBMITTED: 'submitted',
+    PENDING: 'pending',
+    RUNNING: 'running',
+    COMPLETED: 'completed',
+    FAILED: 'failed'
 };
