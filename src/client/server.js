@@ -1,11 +1,16 @@
 import express from 'express';
 import dotenv from 'dotenv';
+dotenv.config();
 import config from '../shared/config.js';
 
-dotenv.config();
-
 const app = express();
-const PORT = config.port;
+
+if (!config.port) {
+  console.error('ERROR: PORT is required for the client API');
+  console.error('Please set PORT in your .env file');
+  process.exit(1);
+}
+const PORT = parseInt(config.port, 10);
 
 app.get('/', (req, res) => {
     res.send('Task Queue API Server is running');
