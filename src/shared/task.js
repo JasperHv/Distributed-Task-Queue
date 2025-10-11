@@ -20,3 +20,16 @@ export function createTask({ type, payload, dependencies = [] }) {
         error: null
     };
 }
+
+/**
+ * Validates task structure
+ */
+export function validateTask(task) {
+    if (!task.task_id) throw new Error('Task must have task_id');
+    if (!task.type) throw new Error('Task must have type');
+    if (!task.payload) throw new Error('Task must have payload');
+    if (!Array.isArray(task.dependencies)) throw new Error('Task dependencies must be an array');
+    if (!Object.values(TaskStatus).includes(task.status)) throw new Error('Invalid task status');
+
+    return true;
+}
