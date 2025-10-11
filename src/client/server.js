@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
+app.get('/health', (req, res) => {
   // Check if we can reach dependencies
   const health = {
     status: 'healthy',
@@ -47,10 +47,7 @@ app.get('/tasks/:taskId', (req, res) => {
   res.status(501).json({ message: 'Task status query not yet implemented', taskId });
 });
 
-const server = app.listen(PORT, () => {
-    console.log(`[${config.nodeId}] Client API listening on port ${PORT}`);
-    console.log(`[${config.nodeId}] Environment: ${config.nodeEnv}`);
-});
+const server = app.listen(PORT);
 
 // SERVER-LEVEL ERROR HANDLING
 server.on('error', (error) => {
@@ -65,6 +62,14 @@ server.on('error', (error) => {
   }
   
   process.exit(1);
+});
+
+// SUCCESSFUL STARTUP LOGGING
+server.on('listening', () => {
+  const address = server.address();
+  const actualPort = address.port;
+  console.log(`[${config.nodeId}] Client API listening on port ${actualPort}`);
+  console.log(`[${config.nodeId}] Environment: ${config.nodeEnv}`);
 });
 
 const shutdown = async () => {
