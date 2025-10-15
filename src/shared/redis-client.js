@@ -6,7 +6,7 @@ import config from './config.js';
 let client = null;
 
 export async function getRedisClient() {
-    if (client) {
+    if (client && client.isOpen) {
         return client;
     }
   
@@ -33,8 +33,16 @@ export async function getRedisClient() {
 
 export async function closeRedisClient() {
     if (client) {
-        await client.quit();
-        client = null;
-        console.log('[Redis] Connection closed');
+        try {
+            if (client.isOpen) {
+                await client.quit();
+            }
+            console.log('[Redis] Connection closed gracefully');
+        } catch (error) {
+            console.error(`[Redis] Error during close: ${error.message}`);
+            client.disconnect();
+        } finally {
+            client = null;
+        }
     }
 }
