@@ -46,3 +46,15 @@ export async function closeRedisClient() {
         }
     }
 }
+
+// Graceful shutdown handler
+export function setupRedisShutdownHandlers() {
+    const gracefulShutdown = async (signal) => {
+        console.log(`[Redis] Received ${signal}, closing Redis connection...`);
+        await closeRedisClient();
+    };
+    
+    process.on('SIGTERM', gracefulShutdown);
+    process.on('SIGINT', gracefulShutdown);
+    process.on('SIGQUIT', gracefulShutdown);
+}
