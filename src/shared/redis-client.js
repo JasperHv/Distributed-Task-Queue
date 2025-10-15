@@ -47,6 +47,20 @@ export async function closeRedisClient() {
     }
 }
 
+// Health check function
+export async function isRedisHealthy() {
+    try {
+        if (!client || !client.isOpen) {
+            return false;
+        }
+        await client.ping();
+        return true;
+    } catch (error) {
+        console.error(`[Redis] Health check failed: ${error.message}`);
+        return false;
+    }
+}
+
 // Graceful shutdown handler
 export function setupRedisShutdownHandlers() {
     const gracefulShutdown = async (signal) => {
