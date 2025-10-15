@@ -25,6 +25,9 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -157,6 +160,9 @@ services:
       - "3000:3000"  # Changed from 8080 for clarity
     networks:
       - tasknet
+
+volumes:
+  redis-data:
 
 networks:
   tasknet:
