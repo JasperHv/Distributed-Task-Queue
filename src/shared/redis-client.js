@@ -4,6 +4,8 @@ import { createClient } from 'redis';
 import config from './config.js';
 
 let client = null;
+const maxRetries = 5;
+const retryDelay = 1000; // Initial delay in ms
 
 export async function getRedisClient() {
     if (client && client.isOpen) {
@@ -11,7 +13,18 @@ export async function getRedisClient() {
     }
   
     client = createClient({
-        url: config.redisUrl
+        url: config.redisUrl,
+        socket: {
+            reconnectStrategy: (retries) => {
+                if (retries > maxRetries) {
+                    console.error(`[Redis] Max retries (${maxRetries}) exceeded, giving up`);
+                    return false; // Stop retrying
+                }
+                const delay = Math.min(retryDelay * Math.pow(2, retries), 10000); // Exponential backoff, max 10s
+                console.log(`[Redis] Retry ${retries}/${maxRetries} in ${delay}ms`);
+                return delay;
+            }
+        }
     });
     
     client.on('error', (err) => {
