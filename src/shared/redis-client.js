@@ -29,6 +29,10 @@ export async function getRedisClient() {
     
     client.on('error', (err) => {
         console.error(`[Redis Error] ${err.message}`);
+        // Don't exit process on Redis errors in production
+        if (config.nodeEnv === 'development') {
+            console.error('[Redis] Stack trace:', err.stack);
+        }
     });
     
     client.on('connect', () => {
