@@ -26,6 +26,10 @@ export async function getRedisClient() {
         console.log('[Redis] Reconnecting...');
     });
     
+    client.on('end', () => {
+        console.log('[Redis] Connection ended');
+        client = null;
+    });
 
     await client.connect();    
     return client;
