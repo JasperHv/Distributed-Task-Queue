@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import config from '../shared/config.js';
+import { getRedisClient, isRedisHealthy, closeRedisClient } from '../shared/redis-client.js';
 
 const app = express();
 app.use(express.json());
@@ -22,20 +23,21 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  // Check if we can reach dependencies
-  const health = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: config.nodeEnv,
-    dependencies: {
-      rabbitmq: 'unknown', // TODO: ping RabbitMQ
-      redis: 'unknown'     // TODO: ping Redis
-    }
-  };
+app.get('/health', async(req, res) => {
+    // Check if we can reach dependencies
+    const redisHealthy = await isRedisHealthy();
+    const health = {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: config.nodeEnv,
+        dependencies: {
+        rabbitmq: 'unknown', // TODO: ping RabbitMQ
+        redis: redisHealthy ? 'healthy' : 'unhealthy'
+        }
+    };
   
-  res.status(200).json(health);
+    res.status(200).json(health);
 });
 
 // Placeholder for task submission endpoint
@@ -69,31 +71,49 @@ server.on('error', (error) => {
 });
 
 // SUCCESSFUL STARTUP LOGGING
-server.on('listening', () => {
+server.on('listening', async() => {
   const address = server.address();
   const actualPort = address.port;
-  console.log(`[${config.nodeId}] Client API listening on port ${actualPort}`);
-  console.log(`[${config.nodeId}] Environment: ${config.nodeEnv}`);
+  console.log(`[SERVER] Client API listening on port ${actualPort}`);
+  console.log(`[SERVER] Environment: ${config.nodeEnv}`);
+
+  // Connect to Redis on startup
+  try {
+    console.log(`[SERVER] Connecting to Redis...`);
+    await getRedisClient();
+    console.log(`[SERVER] ✓ Redis connection established`);
+  } catch (error) {
+    console.error(`[SERVER] ⚠️  Redis connection failed:`, error.message);
+    console.error(`[SERVER] Server will continue but Redis features may not work`);
+  }
 });
 
 const shutdown = async () => {
-  console.log('Shutdown signal received, closing server gracefully...');
+    console.log('[SERVER] Shutdown signal received, closing server gracefully...');
+    
+    // Stop accepting new requests
+    server.close(async () => {
+        console.log('[SERVER] HTTP server closed');
+        
+        // Wait for Redis to finish its own shutdown
+        // Give it a moment to complete cleanup
+        setTimeout(() => {
+            console.log('[SERVER] ✓ Graceful shutdown complete');
+            process.exit(0);
+        }, 500);
+    });
   
-  // Stop accepting new requests
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
-  });
+    // Close external connections
+    // TODO: Close RabbitMQ connection
+    
+    // Note: Redis client handles its own shutdown via signal handlers
+    // We just need to wait for it to complete
   
-  // Close external connections
-  // TODO: Close RabbitMQ connection
-  // TODO: Close Redis connection
-  
-  // Force exit
-  setTimeout(() => {
-    console.error('Forcing shutdown after timeout');
-    process.exit(1);
-  }, 10000);
+    // Force exit
+    setTimeout(() => {
+        console.error('[SERVER] Forcing shutdown after timeout');
+        process.exit(1);
+    }, 10000);
 };
 
 process.on('SIGTERM', shutdown);  // Docker stop command / production
