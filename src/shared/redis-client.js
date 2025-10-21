@@ -8,6 +8,9 @@ let client = null;
 let connectionPromise = null;
 let isClosing = false;
 
+// Track whether shutdown handlers have been registered (singleton pattern)
+let shutdownHandlersRegistered = false;
+
 // Configuration constants
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 30000;    // 30 seconds
@@ -99,9 +102,13 @@ async function connectToRedis() {
 /**
  * Get Redis client instance (creates connection on first call, reuses thereafter)
  * Thread-safe: Multiple concurrent calls will wait for the same connection
+ * Automatically registers shutdown handlers on first call
  * @returns {Promise<RedisClient>} Connected Redis client
  */
 export async function getRedisClient() {
+    // Ensure shutdown handlers are registered (idempotent)
+    ensureShutdownHandlers();
+    
     // Fast path: return existing connected client
     if (client && client.isOpen) {
         return client;
@@ -214,10 +221,17 @@ export function getRedisStats() {
 }
 
 /**
- * Setup graceful shutdown handlers for process signals
- * Call this once in your main entry point (worker/coordinator)
+ * Internal function to ensure shutdown handlers are registered
+ * Called automatically on first getRedisClient() call
+ * Idempotent - safe to call multiple times
  */
-export function setupRedisShutdownHandlers() {
+function ensureShutdownHandlers() {
+    if (shutdownHandlersRegistered) {
+        return; // Already registered, skip
+    }
+    
+    shutdownHandlersRegistered = true;
+    
     const gracefulShutdown = async (signal) => {
         console.log(`\n[Redis] Received ${signal}, initiating graceful shutdown...`);
         try {
@@ -241,5 +255,13 @@ export function setupRedisShutdownHandlers() {
         process.exit(1);
     });
     
-    console.log('[Redis] Shutdown handlers registered');
+    console.log('[Redis] Shutdown handlers registered automatically');
+}
+
+/**
+ * Manual shutdown handler setup (optional - for explicit control)
+ * Generally not needed since handlers auto-register on first connection
+ */
+export function setupRedisShutdownHandlers() {
+    ensureShutdownHandlers();
 }
