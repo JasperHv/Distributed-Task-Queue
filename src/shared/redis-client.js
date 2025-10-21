@@ -21,6 +21,8 @@ const ALERT_AFTER_RETRIES = 5;     // Log loudly after this many retries
 async function connectToRedis() {
     try {
         console.log(`[Redis] Connecting to ${config.redisUrl}...`);
+        
+        // Create client instance
         const newClient = createClient({
             url: config.redisUrl,
             socket: {
@@ -79,7 +81,7 @@ async function connectToRedis() {
                 CONNECTION_TIMEOUT
             )
         );
-
+        
         await Promise.race([connectPromise, timeoutPromise]);
         
         // Verify connection is actually working
@@ -115,6 +117,7 @@ export async function getRedisClient() {
         console.log('[Redis] Connection in progress, waiting...');
         return connectionPromise;
     }
+    
     // Start new connection
     connectionPromise = (async () => {
         try {
@@ -133,10 +136,14 @@ export async function getRedisClient() {
     return connectionPromise;
 }
 
+/**
+ * Close Redis connection gracefully
+ * Safe to call multiple times
+ */
 export async function closeRedisClient() {
-    // Prevent multiple concurrent close attempts
+    // Prevent concurrent close attempts
     if (isClosing) {
-        // Wait for current close to complete
+        console.log('[Redis] Close already in progress, waiting...');
         while (isClosing) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
@@ -144,32 +151,41 @@ export async function closeRedisClient() {
     }
     
     if (!client) {
-        return; // Already closed or never opened
+        console.log('[Redis] No client to close');
+        return;
     }
     
     isClosing = true;
     
     try {
         if (client.isOpen) {
-            await client.quit();
-            console.log('[Redis] Connection closed gracefully');
+            console.log('[Redis] Closing connection gracefully...');
+            await client.quit(); // Graceful shutdown - waits for pending commands
+            console.log('[Redis] ✓ Connection closed gracefully');
+        } else {
+            console.log('[Redis] Client already closed');
         }
     } catch (error) {
-        console.error(`[Redis] Error during close: ${error.message}`);
-        // Force disconnect if quit fails
+        console.error(`[Redis] Error during graceful close: ${error.message}`);
+        
+        // Force disconnect if graceful close fails
         try {
-            client.disconnect();
-            console.log('[Redis] Connection force disconnected');
+            await client.disconnect();
+            console.log('[Redis] ✓ Connection force-closed');
         } catch (disconnectError) {
-            console.error(`[Redis] Force disconnect failed: ${disconnectError.message}`);
+            console.error(`[Redis] ✗ Force disconnect failed: ${disconnectError.message}`);
         }
     } finally {
         client = null;
+        connectionPromise = null;
         isClosing = false;
     }
 }
 
-// Health check function
+/**
+ * Check if Redis connection is healthy
+ * @returns {Promise<boolean>} True if Redis is responding
+ */
 export async function isRedisHealthy() {
     try {
         if (!client || !client.isOpen) {
@@ -183,14 +199,47 @@ export async function isRedisHealthy() {
     }
 }
 
-// Graceful shutdown handler
+/**
+ * Get Redis connection statistics
+ * Useful for monitoring and debugging
+ * @returns {Object} Connection stats
+ */
+export function getRedisStats() {
+    return {
+        isConnected: client?.isOpen || false,
+        isConnecting: connectionPromise !== null,
+        isClosing: isClosing,
+        clientExists: client !== null
+    };
+}
+
+/**
+ * Setup graceful shutdown handlers for process signals
+ * Call this once in your main entry point (worker/coordinator)
+ */
 export function setupRedisShutdownHandlers() {
     const gracefulShutdown = async (signal) => {
-        console.log(`[Redis] Received ${signal}, closing Redis connection...`);
-        await closeRedisClient();
+        console.log(`\n[Redis] Received ${signal}, initiating graceful shutdown...`);
+        try {
+            await closeRedisClient();
+            console.log('[Redis] ✓ Graceful shutdown complete');
+        } catch (error) {
+            console.error(`[Redis] ✗ Error during shutdown: ${error.message}`);
+            process.exit(1);
+        }
     };
     
-    process.on('SIGTERM', gracefulShutdown);
-    process.on('SIGINT', gracefulShutdown);
-    process.on('SIGQUIT', gracefulShutdown);
+    // Handle various termination signals
+    process.once('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.once('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.once('SIGQUIT', () => gracefulShutdown('SIGQUIT'));
+    
+    // Handle uncaught errors
+    process.once('uncaughtException', async (error) => {
+        console.error('[Redis] Uncaught exception:', error);
+        await closeRedisClient();
+        process.exit(1);
+    });
+    
+    console.log('[Redis] Shutdown handlers registered');
 }
