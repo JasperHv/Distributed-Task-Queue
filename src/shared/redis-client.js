@@ -186,6 +186,7 @@ export async function closeRedisClient() {
         client = null;
         connectionPromise = null;
         isClosing = false;
+        console.log('[Redis] ✓ Client fully closed and cleaned up');
     }
 }
 
