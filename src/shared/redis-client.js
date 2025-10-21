@@ -3,97 +3,134 @@
 import { createClient } from 'redis';
 import config from './config.js';
 
+// Module-level state
 let client = null;
-let isConnecting = false;
+let connectionPromise = null;
 let isClosing = false;
-const maxRetries = 5;
-const retryDelay = 1000; // Initial delay in ms
 
-export async function getRedisClient() {
-    // Return existing client if available and open
-    if (client && client.isOpen) {
-        return client;
-    }
-    
-    // Prevent multiple concurrent connection attempts
-    if (isConnecting) {
-        // Wait for the current connection attempt to complete
-        while (isConnecting) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        // Check again after waiting
-        if (client && client.isOpen) {
-            return client;
-        }
-    }
-    
-    // Prevent connecting while closing
-    if (isClosing) {
-        throw new Error('Cannot connect while Redis client is closing');
-    }
-    
-    isConnecting = true;
-    
+// Configuration constants
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 30000;    // 30 seconds
+const CONNECTION_TIMEOUT = 10000;  // 10 seconds
+const ALERT_AFTER_RETRIES = 5;     // Log loudly after this many retries
+
+/**
+ * Core connection function - handles the actual Redis connection logic
+ * @returns {Promise<RedisClient>} Connected Redis client
+ */
+async function connectToRedis() {
     try {
-        client = createClient({
+        console.log(`[Redis] Connecting to ${config.redisUrl}...`);
+        const newClient = createClient({
             url: config.redisUrl,
             socket: {
                 reconnectStrategy: (retries) => {
-                    if (retries > maxRetries) {
-                        console.error(`[Redis] Max retries (${maxRetries}) exceeded, giving up`);
-                        return false; // Stop retrying
+                    const delay = Math.min(
+                        INITIAL_RETRY_DELAY * Math.pow(2, retries), 
+                        MAX_RETRY_DELAY
+                    );
+                    
+                    // Log prominently if retrying many times
+                    if (retries > ALERT_AFTER_RETRIES) {
+                        console.error(
+                            `[Redis] ⚠️  Still retrying after ${retries} attempts ` +
+                            `(next attempt in ${delay}ms)`
+                        );
+                    } else {
+                        console.log(`[Redis] Retry ${retries} in ${delay}ms`);
                     }
-                    const delay = Math.min(retryDelay * Math.pow(2, retries), 10000); // Exponential backoff, max 10s
-                    console.log(`[Redis] Retry ${retries}/${maxRetries} in ${delay}ms`);
+                    
+                    // Always return a delay - never give up on reconnection
                     return delay;
                 }
             }
         });
         
-        client.on('error', (err) => {
-            console.error(`[Redis Error] ${err.message}`);
-            // Don't exit process on Redis errors in production
+        // Set up event handlers BEFORE connecting
+        newClient.on('error', (err) => {
+            console.error(`[Redis] Error: ${err.message}`);
+            // In development, show stack trace for debugging
             if (config.nodeEnv === 'development') {
                 console.error('[Redis] Stack trace:', err.stack);
             }
         });
         
-        client.on('connect', () => {
-            console.log(`[Redis] Connected to ${config.redisUrl}`);
+        newClient.on('connect', () => {
+            console.log(`[Redis] ✓ Connected to ${config.redisUrl}`);
         });
         
-        client.on('reconnecting', () => {
-            console.log('[Redis] Reconnecting...');
+        newClient.on('ready', () => {
+            console.log('[Redis] ✓ Client ready to accept commands');
         });
         
-        client.on('end', () => {
+        newClient.on('reconnecting', () => {
+            console.log('[Redis] ↻ Reconnecting...');
+        });
+        
+        newClient.on('end', () => {
             console.log('[Redis] Connection ended');
-            client = null;
-            isConnecting = false;
-            isClosing = false;
         });
 
         // Connect with timeout protection
-        const connectPromise = client.connect();
+        const connectPromise = newClient.connect();
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Redis connection timeout')), 10000)
+            setTimeout(
+                () => reject(new Error(`Redis connection timeout after ${CONNECTION_TIMEOUT}ms`)), 
+                CONNECTION_TIMEOUT
+            )
         );
-        
+
         await Promise.race([connectPromise, timeoutPromise]);
         
-        // Verify connection with ping
-        await client.ping();
-        console.log('[Redis] Connection verified with ping');
+        // Verify connection is actually working
+        const pingResult = await newClient.ping();
+        console.log(`[Redis] ✓ Connection verified (ping: ${pingResult})`);
         
-        return client;
+        return newClient;
         
     } catch (error) {
-        console.error(`[Redis] Failed to connect: ${error.message}`);
-        client = null;
+        console.error(`[Redis] ✗ Failed to connect: ${error.message}`);
         throw error;
-    } finally {
-        isConnecting = false;
     }
+}
+
+/**
+ * Get Redis client instance (creates connection on first call, reuses thereafter)
+ * Thread-safe: Multiple concurrent calls will wait for the same connection
+ * @returns {Promise<RedisClient>} Connected Redis client
+ */
+export async function getRedisClient() {
+    // Fast path: return existing connected client
+    if (client && client.isOpen) {
+        return client;
+    }
+    
+    // Prevent connecting while shutting down
+    if (isClosing) {
+        throw new Error('Cannot connect to Redis: client is shutting down');
+    }
+    
+    // If connection is in progress, wait for it
+    if (connectionPromise) {
+        console.log('[Redis] Connection in progress, waiting...');
+        return connectionPromise;
+    }
+    // Start new connection
+    connectionPromise = (async () => {
+        try {
+            client = await connectToRedis();
+            return client;
+        } catch (error) {
+            // Clear client on failure so next call will retry
+            client = null;
+            throw error;
+        } finally {
+            // Clear promise so subsequent calls can try again
+            connectionPromise = null;
+        }
+    })();
+    
+    return connectionPromise;
 }
 
 export async function closeRedisClient() {
